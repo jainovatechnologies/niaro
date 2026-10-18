@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Play, Pause } from 'lucide-react'
 
-// Global manager to guarantee only one video autoplays at a time on mobile
+// Global manager to guarantee only one video plays at a time
 type VideoRegistration = {
   id: string
   pause: () => void
@@ -23,14 +23,11 @@ function registerVideo(reg: VideoRegistration) {
 
 function notifyVideoPlaying(id: string) {
   currentPlayingId = id
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
-  if (isMobile) {
-    activeVideoRegistry.forEach(reg => {
-      if (reg.id !== id) {
-        reg.pause()
-      }
-    })
-  }
+  activeVideoRegistry.forEach(reg => {
+    if (reg.id !== id) {
+      reg.pause()
+    }
+  })
 }
 
 export interface LazyVideoProps {
@@ -40,6 +37,7 @@ export interface LazyVideoProps {
   aspectRatio?: string
   ariaLabel?: string
   objectFit?: 'cover' | 'contain'
+  preload?: 'none' | 'metadata' | 'auto'
 }
 
 export function LazyVideo({
@@ -49,6 +47,7 @@ export function LazyVideo({
   aspectRatio,
   ariaLabel = 'Video player',
   objectFit = 'cover',
+  preload = 'none',
 }: LazyVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -78,7 +77,7 @@ export function LazyVideo({
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
 
-  // Register in global registry for single-playback on mobile
+  // Register in global registry for single-playback
   useEffect(() => {
     const unregister = registerVideo({
       id: idRef.current,
@@ -105,7 +104,6 @@ export function LazyVideo({
         promise
           .then(() => setIsPlaying(true))
           .catch(() => {
-            // Autoplay blocked by browser policy
             setIsPlaying(false)
           })
       }
@@ -115,11 +113,9 @@ export function LazyVideo({
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
-            // Under prefers-reduced-motion, do not autoplay
             if (prefersReducedMotion) {
               return
             }
-            // If user manually paused this specific video, don't force replay
             if (userInteracted && video.paused) {
               return
             }
@@ -175,14 +171,13 @@ export function LazyVideo({
         muted
         loop
         playsInline
-        preload="none"
+        preload={preload}
         aria-label={ariaLabel}
         className={`w-full h-full object-${objectFit} block`}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
 
-      {/* Manual play/pause control button for prefers-reduced-motion and accessible interaction */}
       <button
         type="button"
         onClick={togglePlay}
@@ -200,4 +195,5 @@ export function LazyVideo({
     </div>
   )
 }
+
 export default LazyVideo
